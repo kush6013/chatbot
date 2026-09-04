@@ -11,3 +11,4 @@ requests
 numpy
 sentence-transformers
 scikit-learn
+PyMuPDF
