@@ -1,3 +1,4 @@
+```javascript
 document.addEventListener('DOMContentLoaded', () => {
   // ============================================================
   // API CONFIGURATION
@@ -7,7 +8,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const BASE =
     window.RAG_API_BASE ||
-    (isLocal ? 'http://127.0.0.1:8000' : '');
+    (isLocal
+      ? 'http://127.0.0.1:8000'
+      : 'https://chatbot-exuw.onrender.com');
 
   // ============================================================
   // DOM ELEMENTS
@@ -492,20 +495,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const response = await fetch(
-        apiUrl(`/api/chat/history/${encodeURIComponent(id)}`)
+        apiUrl(
+          `/api/chat/history/${encodeURIComponent(id)}`
+        )
       );
 
       if (!response.ok) return;
 
       const data = await response.json();
-      const messagesList = Array.isArray(data.messages) ? data.messages : [];
+
+      const messagesList =
+        Array.isArray(data.messages)
+          ? data.messages
+          : [];
 
       chat.innerHTML = '';
+
       if (messagesList.length === 0) {
         if (welcome) {
           chat.appendChild(welcome);
           welcome.hidden = false;
         }
+
         return;
       }
 
@@ -518,7 +529,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
     } catch (error) {
-      console.error('Failed to load conversation messages:', error);
+      console.error(
+        'Failed to load conversation messages:',
+        error
+      );
     }
   }
 
@@ -931,3 +945,4 @@ document.addEventListener('DOMContentLoaded', () => {
     conversationId
   );
 });
+```
