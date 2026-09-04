@@ -28,7 +28,8 @@ router = APIRouter(
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
-    ".docx"
+    ".docx",
+    ".txt"
 }
 
 
@@ -73,7 +74,7 @@ async def upload_document(
         raise HTTPException(
             status_code=400,
             detail=(
-                "Only PDF and DOCX "
+                "Only PDF, DOCX, and TXT "
                 "documents are supported."
             )
         )

@@ -13,6 +13,13 @@ OPENAI_MODEL = os.getenv(
     "gpt-4o-mini"
 )
 
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+OPENROUTER_MODEL = os.getenv(
+    "OPENROUTER_MODEL",
+    "meta-llama/llama-3.3-70b-instruct:free"
+)
+
 
 
 
