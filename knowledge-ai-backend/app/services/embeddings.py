@@ -10,24 +10,26 @@ from app.config import EMBEDDING_MODEL
 class EmbeddingService:
 
     def __init__(self):
+        self._model = None
 
-        print(
-            f"Loading embedding model: "
-            f"{EMBEDDING_MODEL}"
-        )
-
-        self.model = SentenceTransformer(
-            EMBEDDING_MODEL
-        )
+    def _load_model(self):
+        if self._model is None:
+            print(
+                f"Loading embedding model: "
+                f"{EMBEDDING_MODEL}"
+            )
+            self._model = SentenceTransformer(
+                EMBEDDING_MODEL
+            )
+        return self._model
 
     def generate(self, texts):
-
-        embeddings = self.model.encode(
+        model = self._load_model()
+        embeddings = model.encode(
             texts,
             normalize_embeddings=True,
             show_progress_bar=False
         )
-
         return embeddings
 
 

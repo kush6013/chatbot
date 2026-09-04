@@ -14,3 +14,4 @@ scikit-learn
 PyMuPDF
 python-docx
 aiofiles
+faiss-cpu
