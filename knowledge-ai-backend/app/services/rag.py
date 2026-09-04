@@ -128,8 +128,6 @@ def extract_concise_answer(question: str, relevant_results: list, query_embeddin
         pg = chunk.get("page")
         loc = f"Page {pg}" if pg else src
         text = chunk.get("text", "")
-        
-        # Split on newlines, bullets, or sentence-ending periods
         raw_lines = re.split(r'[\n•\r]+|(?<=[a-zA-Z0-9])\.\s+(?=[A-Z0-9])', text)
         for l in raw_lines:
             line = l.strip()
@@ -148,7 +146,6 @@ def extract_concise_answer(question: str, relevant_results: list, query_embeddin
     if query_embedding is None:
         query_embedding = embedding_service.generate([question])[0]
 
-    # Generate embeddings for candidate sentences in batch using sentence-transformer
     sentence_texts = [item[0] for item in candidate_lines[:25]]
     sentence_embeddings = embedding_service.generate(sentence_texts)
 
@@ -218,7 +215,6 @@ Answer ONLY using the retrieved document context. Provide a clear, balanced answ
 
     answer = None
 
-    # 1. Try OpenAI first
     if OPENAI_API_KEY:
         try:
             client = OpenAI(api_key=OPENAI_API_KEY)
@@ -234,7 +230,6 @@ Answer ONLY using the retrieved document context. Provide a clear, balanced answ
         except Exception:
             pass
 
-    # 2. Try OpenRouter fallback
     if answer is None and OPENROUTER_API_KEY:
         try:
             client = OpenAI(
@@ -253,7 +248,6 @@ Answer ONLY using the retrieved document context. Provide a clear, balanced answ
         except Exception:
             pass
 
-    # 3. Fallback to dynamic semantic sentence extraction if LLM API is unavailable/exhausted
     if answer is None:
         answer = extract_concise_answer(question, relevant_results, query_embedding)
 

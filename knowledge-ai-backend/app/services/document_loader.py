@@ -5,8 +5,6 @@ try:
 except ImportError:
     import fitz
 
-from docx import Document
-
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -37,6 +35,13 @@ def load_pdf(file_path: str):
 
 
 def load_docx(file_path: str):
+    try:
+        from docx import Document
+    except ImportError:
+        raise ValueError(
+            "python-docx is not installed. "
+            "Add 'python-docx' to requirements.txt."
+        )
     try:
         document = Document(file_path)
     except Exception as err:

@@ -12,3 +12,5 @@ numpy
 sentence-transformers
 scikit-learn
 PyMuPDF
+python-docx
+aiofiles
