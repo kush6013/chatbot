@@ -123,7 +123,7 @@ python3 -m http.server 5173
 # open http://localhost:5173
 ```
 
-The frontend uses `http://127.0.0.1:8000` by default (`config.js` left empty). Set `window.RAG_API_BASE` in `config.js` to point at a deployed backend.
+The frontend points at the deployed Render backend by default (`window.RAG_API_BASE` in `config.js` set to `https://chatbot-exuw.onrender.com`). For local development, temporarily set `window.RAG_API_BASE = ""` in `config.js` so `app.js` falls back to `http://127.0.0.1:8000`.
 
 ## Document upload process
 
@@ -197,7 +197,7 @@ What is the salary of the CEO of NASA?   -> clean "not found"
 ## Deploying the frontend to Vercel
 
 - Import the `knowledge-ai-frontend` folder (or repo) as a Vercel project. It needs no build step; `vercel.json` sets `outputDirectory: "."`.
-- API base is not hardcoded throughout `app.js`. Set `window.RAG_API_BASE` in `config.js` to your deployed backend, e.g. `"https://your-app.onrender.com"` (this is the export-config equivalent of `VITE_API_BASE_URL` for this build-free app). For a code-based alternative you can edit `config.js`.
+- API base is not hardcoded throughout `app.js`. It is set once in `config.js` as `window.RAG_API_BASE`, defaulting to the deployed Render backend (`https://chatbot-exuw.onrender.com`). For local dev, temporarily clear it to `""` so `app.js` falls back to `http://127.0.0.1:8000` (this is the export-config equivalent of `VITE_API_BASE_URL` for this build-free app).
 - Because the frontend is build-free, a `VITE_*` env var is not inlined; the `config.js` global is the mechanism.
 - Backend CORS already allows all origins, so the Vercel origin can call Render.
 
