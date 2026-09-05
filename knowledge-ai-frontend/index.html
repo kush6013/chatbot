@@ -1,20 +1,63 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="theme-color" content="#0b0d12">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0d12">
   <title>Knowledge AI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
+
 <body>
   <div class="app-shell">
-    <aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">✦</span><span>Knowledge AI</span></a><button class="new-chat" id="new-chat" type="button"><span>＋</span> New chat</button><p class="sidebar-label">Conversations</p><nav class="conversation-list" id="conversation-list"></nav><div class="sidebar-footer"><i></i>Document intelligence</div></aside>
+    <aside class="sidebar"><a class="brand" href="/"><span class="brand-mark">✦</span><span>Knowledge
+          AI</span></a><button class="new-chat" id="new-chat" type="button"><span>＋</span> New chat</button>
+      <p class="sidebar-label">Conversations</p>
+      <nav class="conversation-list" id="conversation-list"></nav>
+      <div class="sidebar-footer"><i></i>Document intelligence</div>
+    </aside>
     <main class="main-content">
-      <header class="topbar"><div><p class="eyebrow">YOUR KNOWLEDGE BASE</p><h1 id="chat-title">New conversation</h1></div><button class="clear-chat" id="clear-chat" type="button">Clear chat</button></header>
-      <section class="chat" id="chat"><div class="welcome" id="welcome"><div class="welcome-orb">✦</div><p class="eyebrow">DOCUMENT-POWERED ASSISTANT</p><h2>What would you like<br>to understand?</h2><p>Ask about your documents, policies, or company knowledge.</p><div class="suggestions" id="suggestions"><button type="button">Summarize the uploaded document</button><button type="button">What are the key policies?</button><button type="button">Give me the important highlights</button></div></div></section>
-      <footer class="composer-wrap"><form class="composer" id="chat-form"><input id="file-input" type="file" accept=".pdf,.txt,.docx" style="display:none;"><label class="attach-button" for="file-input" title="Upload company document"><span>＋</span></label><textarea id="user-input" rows="1" maxlength="2000" placeholder="Message Knowledge AI…" aria-label="Your message"></textarea><button class="send-button" id="send-btn" type="submit" aria-label="Send">↑</button></form><p class="upload-status" id="upload-status"></p><details class="uploaded-files" id="uploaded-files" open><summary>Uploaded documents <b id="document-count">0</b></summary><div class="document-list" id="document-list"></div></details><p>Attach a company PDF, TXT, or DOCX with the + button. Knowledge AI can make mistakes.</p></footer>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">YOUR KNOWLEDGE BASE</p>
+          <h1 id="chat-title">New conversation</h1>
+        </div><button class="clear-chat" id="clear-chat" type="button">Clear chat</button>
+      </header>
+      <section class="chat" id="chat">
+        <div class="welcome" id="welcome">
+          <div class="welcome-orb">✦</div>
+          <p class="eyebrow">DOCUMENT-POWERED ASSISTANT</p>
+          <h2>What would you like<br>to understand?</h2>
+          <p>Ask about your documents, policies, or company knowledge.</p>
+          <div class="suggestions" id="suggestions"><button type="button">Summarize the uploaded
+              document</button><button type="button">What are the key policies?</button><button type="button">Give me
+              the important highlights</button></div>
+        </div>
+      </section>
+      <footer class="composer-wrap">
+        <form class="composer" id="chat-form"><input id="file-input" type="file" accept=".pdf,.txt,.docx"
+            style="display:none;"><label class="attach-button" for="file-input"
+            title="Upload company document"><span>＋</span></label><textarea id="user-input" rows="1" maxlength="2000"
+            placeholder="Message Knowledge AI…" aria-label="Your message"></textarea><button class="send-button"
+            id="send-btn" type="submit" aria-label="Send">↑</button></form>
+        <p class="upload-status" id="upload-status"></p>
+        <details class="uploaded-files" id="uploaded-files" open>
+          <summary>Uploaded documents <b id="document-count">0</b></summary>
+          <div class="document-list" id="document-list"></div>
+        </details>
+        <p>Attach a company PDF, TXT, or DOCX with the + button. Knowledge AI can make mistakes.</p>
+      </footer>
     </main>
   </div>
+  <script src="config.js"></script>
   <script src="app.js"></script>
-</body></html>
+</body>
+
+</html>

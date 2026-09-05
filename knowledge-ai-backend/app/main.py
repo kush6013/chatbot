@@ -59,3 +59,21 @@ def health():
         "status": "ok",
         "service": "Knowledge AI"
     }
+
+
+@app.get("/health")
+def health_root():
+
+    return {
+        "status": "ok"
+    }
+
+
+@app.get("/")
+def root():
+
+    return {
+        "service": "Knowledge AI",
+        "docs": "/docs",
+        "health": "/health"
+    }

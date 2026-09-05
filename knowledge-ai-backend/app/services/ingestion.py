@@ -2,12 +2,14 @@ import uuid
 
 from pathlib import Path
 
+from app.config import document_id_for
+
 from app.services.document_loader import (
     load_document
 )
 
 from app.services.chunker import (
-    chunk_text
+    chunk_text_with_meta
 )
 
 from app.services.embeddings import (
@@ -17,6 +19,17 @@ from app.services.embeddings import (
 from app.services.vector_store import (
     vector_store
 )
+
+EMBED_BATCH_SIZE = 64
+
+
+def _embed_in_batches(texts):
+    embeddings = []
+    for start in range(0, len(texts), EMBED_BATCH_SIZE):
+        batch = texts[start:start + EMBED_BATCH_SIZE]
+        batch_embeddings = embedding_service.generate(batch)
+        embeddings.extend(batch_embeddings)
+    return embeddings
 
 
 def process_document(
@@ -37,14 +50,14 @@ def process_document(
 
     for page_data in pages:
 
-        chunks = chunk_text(
+        chunks = chunk_text_with_meta(
             page_data["text"]
         )
 
         for chunk in chunks:
 
             all_chunks.append(
-                chunk
+                chunk["text"]
             )
 
             metadata.append({
@@ -53,13 +66,21 @@ def process_document(
                     uuid.uuid4()
                 ),
 
+                "document_id": document_id_for(
+                    filename
+                ),
+
                 "source": filename,
 
                 "page": page_data[
                     "page"
                 ],
 
-                "text": chunk
+                "text": chunk["text"],
+
+                "type": chunk["type"],
+
+                "heading": chunk["heading"]
 
             })
 
@@ -70,10 +91,8 @@ def process_document(
             "in the document."
         )
 
-    embeddings = (
-        embedding_service.generate(
-            all_chunks
-        )
+    embeddings = _embed_in_batches(
+        all_chunks
     )
 
     vector_store.add(

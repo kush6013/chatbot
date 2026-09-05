@@ -5,6 +5,8 @@ from fastapi import (
 
 from pydantic import BaseModel
 
+import logging
+
 from app.database import (
     create_conversation,
     update_conversation_title,
@@ -15,8 +17,15 @@ from app.database import (
 )
 
 from app.services.rag import (
-    answer_question
+    answer_question,
+    debug_retrieval
 )
+
+from app.config import (
+    RAG_DEBUG
+)
+
+logger = logging.getLogger("knowledge_ai")
 
 
 router = APIRouter(
@@ -75,7 +84,8 @@ def chat(
         )
 
     history = get_messages(
-        conversation_id
+        conversation_id,
+        limit=20
     )
 
     create_conversation(
@@ -92,11 +102,17 @@ def chat(
 
     except Exception as error:
 
+        logger.error(
+            "Chat failed for conversation %s: %s",
+            conversation_id,
+            error
+        )
+
         raise HTTPException(
             status_code=500,
             detail=(
-                "AI processing failed: "
-                f"{str(error)}"
+                "Your question could not be answered at the moment. "
+                "Please try again shortly."
             )
         )
 
@@ -122,6 +138,33 @@ def chat(
         "conversation_id": conversation_id,
         "answer": result["answer"],
         "sources": result["sources"]
+    }
+
+
+@router.post("/debug")
+def debug_chat_retrieval(
+    request: ChatRequest
+):
+
+    if not RAG_DEBUG:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Not found."
+        )
+
+    history = get_messages(
+        request.conversation_id.strip(),
+        limit=20
+    )
+
+    return {
+
+        "debug": debug_retrieval(
+            request.message,
+            history
+        )
+
     }
 
 

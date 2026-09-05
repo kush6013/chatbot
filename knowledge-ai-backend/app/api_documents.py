@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 
@@ -8,17 +9,23 @@ from fastapi import (
     HTTPException
 )
 
-from app.config import UPLOAD_DIR
+from app.config import (
+    UPLOAD_DIR,
+    MAX_UPLOAD_SIZE
+)
 
 from app.database import (
     add_document,
     list_documents,
-    delete_document
+    delete_document,
+    reconcile_documents
 )
 
 from app.services.ingestion import (
     process_document
 )
+
+logger = logging.getLogger("knowledge_ai")
 
 
 router = APIRouter(
@@ -36,11 +43,14 @@ ALLOWED_EXTENSIONS = {
 @router.get("/")
 def get_documents():
 
+    reconcile_documents()
+
     documents = list_documents()
 
     return {
         "documents": [
             {
+                "document_id": item["document_id"],
                 "filename": item["filename"],
                 "size": item["size"],
                 "type": item["file_type"],
@@ -59,7 +69,6 @@ async def upload_document(
 ):
 
     if not file.filename:
-
         raise HTTPException(
             status_code=400,
             detail="Filename is required."
@@ -70,19 +79,13 @@ async def upload_document(
     )[1].lower()
 
     if extension not in ALLOWED_EXTENSIONS:
-
         raise HTTPException(
-            status_code=400,
+            status_code=415,
             detail=(
                 "Only PDF, DOCX, and TXT "
                 "documents are supported."
             )
         )
-
-    os.makedirs(
-        UPLOAD_DIR,
-        exist_ok=True
-    )
 
     filename = os.path.basename(
         file.filename
@@ -93,61 +96,88 @@ async def upload_document(
         filename
     )
 
+    os.makedirs(
+        UPLOAD_DIR,
+        exist_ok=True
+    )
+
+    size = 0
     try:
-
-        with open(
-            file_path,
-            "wb"
-        ) as output:
-
-            shutil.copyfileobj(
-                file.file,
-                output
-            )
-
-        size = os.path.getsize(
-            file_path
-        )
-
-        result = process_document(
-            file_path
-        )
-
-        add_document(
-            filename,
-            size,
-            extension.replace(".", "")
-        )
-
-        return {
-            "success": True,
-            "message": (
-                "Document uploaded "
-                "and indexed successfully."
-            ),
-            "filename": filename,
-            "chunks": result["chunks"]
-        }
-
+        with open(file_path, "wb") as output:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MAX_UPLOAD_SIZE:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=(
+                            "File is too large. "
+                            "Maximum allowed size is "
+                            f"{MAX_UPLOAD_SIZE // (1024 * 1024)} MB."
+                        )
+                    )
+                output.write(chunk)
+    except HTTPException:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise
     except Exception as error:
-
-        if os.path.exists(
-            file_path
-        ):
-
-            os.remove(
-                file_path
-            )
-
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        logger.error("Upload failed for %s: %s", filename, error)
         raise HTTPException(
             status_code=500,
-            detail=str(error)
+            detail="Failed to save the uploaded file."
         )
 
+    if size == 0:
+        os.remove(file_path)
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is empty."
+        )
 
-from app.services.vector_store import (
-    vector_store
-)
+    existing = [
+        item for item in list_documents()
+        if item["filename"] == filename
+    ]
+
+    if existing:
+        from app.services.vector_store import vector_store
+        vector_store.delete_source(filename)
+
+    try:
+        result = process_document(file_path)
+    except Exception as error:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        logger.error("Document processing failed for %s: %s", filename, error)
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "The document could not be processed. "
+                "It may be corrupt, empty, or in an unsupported layout. "
+                "Details are logged on the server."
+            )
+        )
+
+    add_document(
+        filename,
+        size,
+        extension.replace(".", "")
+    )
+
+    return {
+        "success": True,
+        "message": (
+            "Document uploaded "
+            "and indexed successfully."
+        ),
+        "filename": filename,
+        "chunks": result["chunks"]
+    }
 
 
 @router.delete("/{filename}")
@@ -159,27 +189,41 @@ def remove_document(
         filename
     )
 
+    from app.services.vector_store import (
+        vector_store
+    )
+
     file_path = os.path.join(
         UPLOAD_DIR,
         filename
     )
 
-    if not os.path.exists(
+    file_exists = os.path.exists(
         file_path
-    ):
+    )
 
+    rows = [
+        item for item in list_documents()
+        if item["filename"] == filename
+        or item["document_id"] == filename
+    ]
+
+    sources = {
+        item.get("source")
+        for item in vector_store.all_metadata()
+    }
+
+    if not file_exists and not rows and filename not in sources:
         raise HTTPException(
             status_code=404,
             detail="Document not found."
         )
 
-    os.remove(
-        file_path
-    )
+    if file_exists:
+        os.remove(file_path)
 
-    delete_document(
-        filename
-    )
+    if rows:
+        delete_document(filename)
 
     vector_store.delete_source(
         filename
@@ -189,4 +233,3 @@ def remove_document(
         "success": True,
         "message": "Document deleted."
     }
-

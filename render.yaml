@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: knowledge-ai-backend
+    runtime: python
+    rootDir: knowledge-ai-backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o-mini
+      - key: EMBEDDING_MODEL
+        value: all-MiniLM-L6-v2
+      - key: CHUNK_SIZE
+        value: "800"
+      - key: CHUNK_OVERLAP
+        value: "120"
+      - key: TOP_K
+        value: "5"
+      - key: SIMILARITY_THRESHOLD
+        value: "0.15"
+      - key: MAX_UPLOAD_SIZE
+        value: "15728640"

@@ -1,7 +1,7 @@
 import os
 import sqlite3
 
-from app.config import DATABASE_PATH
+from app.config import DATABASE_PATH, UPLOAD_DIR, document_id_for
 
 
 def get_connection():
@@ -28,6 +28,19 @@ def initialize_database():
             )
             """
         )
+        with get_connection() as connection:
+            columns = {
+                row[1]
+                for row in connection.execute(
+                    "PRAGMA table_info(documents)"
+                ).fetchall()
+            }
+        if "document_id" not in columns:
+            connection = get_connection()
+            connection.execute(
+                "ALTER TABLE documents ADD COLUMN document_id TEXT"
+            )
+            connection.commit()
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS conversations (
@@ -57,10 +70,10 @@ def add_document(filename, size, file_type):
         connection.execute(
             """
             INSERT OR REPLACE INTO documents
-            (filename, size, file_type)
-            VALUES (?, ?, ?)
+            (filename, size, file_type, document_id)
+            VALUES (?, ?, ?, ?)
             """,
-            (filename, size, file_type)
+            (filename, size, file_type, document_id_for(filename))
         )
         connection.commit()
 
@@ -69,12 +82,20 @@ def list_documents():
     with get_connection() as connection:
         rows = connection.execute(
             """
-            SELECT filename, size, file_type, uploaded_at
+            SELECT filename, size, file_type, uploaded_at, document_id
             FROM documents
             ORDER BY uploaded_at DESC
             """
         ).fetchall()
-        return [dict(row) for row in rows]
+        return [
+            {
+                **dict(row),
+                "document_id": (
+                    row["document_id"] or document_id_for(row["filename"])
+                ),
+            }
+            for row in rows
+        ]
 
 
 def delete_document(filename):
@@ -82,10 +103,38 @@ def delete_document(filename):
         connection.execute(
             """
             DELETE FROM documents
-            WHERE filename = ?
+            WHERE filename = ? OR document_id = ?
             """,
-            (filename,)
+            (filename, filename)
         )
+        connection.commit()
+
+
+def reconcile_documents():
+    """Drop database rows that no longer correspond to anything usable.
+
+    ``data/uploads`` and the vector store are ephemeral (lost on redeploy)
+    while the SQLite database persists, so rows can outlive the physical
+    file. Keeping those rows makes the UI list documents that later fail
+    with "Document not found." — this reconciles both and never deletes a
+    row whose file or indexed chunks still exist."""
+    from app.services.vector_store import vector_store
+    indexed_sources = {
+        item.get("source") for item in vector_store.all_metadata()
+    }
+    with get_connection() as connection:
+        rows = connection.execute(
+            "SELECT id, filename FROM documents"
+        ).fetchall()
+        for row in rows:
+            missing = not os.path.exists(
+                os.path.join(UPLOAD_DIR, row["filename"])
+            )
+            if missing and row["filename"] not in indexed_sources:
+                connection.execute(
+                    "DELETE FROM documents WHERE id = ?",
+                    (row["id"],)
+                )
         connection.commit()
 
 

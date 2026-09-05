@@ -160,6 +160,13 @@ class VectorStore:
 
         return results
 
+    def all_metadata(self):
+        """Return all stored metadata items (for summary / structure)."""
+        return [
+            dict(item)
+            for item in self.metadata
+        ]
+
     def delete_source(self, filename):
         new_metadata = [
             item for item in self.metadata

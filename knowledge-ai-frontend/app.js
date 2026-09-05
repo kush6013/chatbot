@@ -1,10 +1,30 @@
+function splitMarkdownRow(lined) {
+    let body = String(lined ?? '').trim();
+    if (body.startsWith('|')) {
+      body = body.slice(1);
+    }
+    if (body.endsWith('|')) {
+      body = body.slice(0, -1);
+    }
+    const cells = body.split('|').map((cell) => cell.trim());
+    while (cells.length > 0 && cells[0] === '') cells.shift();
+    while (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
+    return cells;
+  }
+  function isTableRow(line) {
+    const t = String(line ?? '').trim();
+    if (!t) return false;
+    if (t.startsWith('|')) return true;
+    return t.endsWith('|') && t.split('|').length >= 3;
+  }
+  function isTableSeparator(line) {
+    const cells = splitMarkdownRow(line);
+    return cells.length > 0 && cells.every((cell) => /^:?-{2,}:?$/.test(cell));
+  }
+
 document.addEventListener('DOMContentLoaded', () => {
-  const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
   const BASE =
-    window.RAG_API_BASE ||
-    (isLocal
-      ? 'http://127.0.0.1:8000'
-      : 'https://chatbot-exuw.onrender.com');
+    window.RAG_API_BASE || 'http://127.0.0.1:8000';
   const $ = (selector) => document.querySelector(selector);
   const chat = $('#chat');
   const input = $('#user-input');
@@ -41,6 +61,94 @@ document.addEventListener('DOMContentLoaded', () => {
   function apiUrl(path) {
     return `${BASE}${path}`;
   }
+  function renderInline(element, text) {
+    if (!text) return;
+    const regex = /(\*\*.+?\*\*|\*\(.+?\)\*)/g;
+    let last = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > last) {
+        element.appendChild(
+          document.createTextNode(text.slice(last, match.index))
+        );
+      }
+      const token = match[0];
+      if (token.startsWith('**')) {
+        const strong = document.createElement('strong');
+        strong.textContent = token.slice(2, -2);
+        element.appendChild(strong);
+      } else {
+        const cite = document.createElement('span');
+        cite.className = 'source-ref';
+        cite.textContent = token.slice(1, -1);
+        element.appendChild(cite);
+      }
+      last = match.index + token.length;
+    }
+    if (last < text.length) {
+      element.appendChild(document.createTextNode(text.slice(last)));
+    }
+  }
+  function renderMarkdown(container, text) {
+    container.textContent = '';
+    const lines = String(text ?? '').split('\n');
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i].trim();
+      if (!line) {
+        i++;
+        continue;
+      }
+      if (isTableRow(line)) {
+        const table = document.createElement('table');
+        table.className = 'answer-table';
+        let headerDone = false;
+        let headerCells = null;
+        while (i < lines.length && isTableRow(lines[i])) {
+          const rowLine = lines[i];
+          if (isTableSeparator(rowLine)) {
+            i++;
+            continue;
+          }
+          const cells = splitMarkdownRow(rowLine);
+          if (headerCells === null) headerCells = cells;
+          while (cells.length < headerCells.length) cells.push('');
+          cells.length = headerCells.length;
+          const row = document.createElement('tr');
+          cells.forEach((cell, cellIndex) => {
+            const cellNode = document.createElement(
+              !headerDone && cellIndex === 0 ? 'th' : 'td'
+            );
+            renderInline(cellNode, cell);
+            row.appendChild(cellNode);
+          });
+          table.appendChild(row);
+          headerDone = true;
+          i++;
+        }
+        container.appendChild(table);
+        continue;
+      }
+      if (/^[•\-]\s/.test(line)) {
+        const list = document.createElement('ul');
+        while (i < lines.length && /^[•\-]\s/.test(lines[i].trim())) {
+          const item = document.createElement('li');
+          renderInline(
+            item,
+            lines[i].trim().replace(/^[•\-]\s/, '')
+          );
+          list.appendChild(item);
+          i++;
+        }
+        container.appendChild(list);
+        continue;
+      }
+      const paragraph = document.createElement('p');
+      renderInline(paragraph, line);
+      container.appendChild(paragraph);
+      i++;
+    }
+  }
   function resizeInput() {
     if (!input) return;
     input.style.height = 'auto';
@@ -66,21 +174,30 @@ document.addEventListener('DOMContentLoaded', () => {
     avatar.textContent = role === 'user' ? 'You' : '✦';
     const body = document.createElement('div');
     body.className = 'message-body';
-    const textElement = document.createElement('div');
-    textElement.textContent = text ?? '';
-    body.appendChild(textElement);
+    renderMarkdown(body, text ?? '');
     if (Array.isArray(sources) && sources.length > 0) {
       const sourcesContainer = document.createElement('div');
       sourcesContainer.className = 'sources';
+      const seenSources = new Set();
       sources.forEach((source) => {
+        const sourceName = source?.source ?? 'Unknown source';
+        if (!source?.source) return;
+        const page = source?.page;
+        const dedupeKey = `${sourceName}|${page ?? ''}`;
+        if (seenSources.has(dedupeKey)) return;
+        seenSources.add(dedupeKey);
         const sourceElement = document.createElement('span');
         sourceElement.className = 'source';
-        const sourceName = source?.source ?? 'Unknown source';
-        const page = source?.page ?? '?';
-        sourceElement.textContent = `${sourceName} · p. ${page}`;
+        const parts = [sourceName];
+        if (Number.isFinite(page)) {
+          parts.push(`p. ${page}`);
+        }
+        sourceElement.textContent = parts.join(' · ');
         sourcesContainer.appendChild(sourceElement);
       });
-      body.appendChild(sourcesContainer);
+      if (seenSources.size > 0) {
+        body.appendChild(sourcesContainer);
+      }
     }
     article.appendChild(avatar);
     article.appendChild(body);
@@ -92,14 +209,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!chat) return null;
     const article = document.createElement('article');
     article.className = 'message thinking-message';
-    article.innerHTML = `
-      <div class="message-avatar">✦</div>
-      <div class="thinking">
-        <i></i>
-        <i></i>
-        <i></i>
-      </div>
-    `;
+    const body = document.createElement('div');
+    body.className = 'message-body';
+    const label = document.createElement('div');
+    label.className = 'thinking-label';
+    label.textContent = 'Generating answer…';
+    const dots = document.createElement('div');
+    dots.className = 'thinking';
+    dots.innerHTML = '<i></i><i></i><i></i>';
+    body.appendChild(label);
+    body.appendChild(dots);
+    article.appendChild(body);
     chat.appendChild(article);
     scrollChatToBottom();
     return article;
@@ -370,9 +490,11 @@ document.addEventListener('DOMContentLoaded', () => {
   async function uploadDocument(file) {
     if (!file) return;
     if (!uploadStatus) return;
-    uploadStatus.className = 'upload-status';
+    uploadStatus.className = 'upload-status active';
     uploadStatus.textContent =
       `Uploading ${file.name}…`;
+    if (sendBtn) sendBtn.disabled = true;
+    if (fileInput) fileInput.disabled = true;
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -397,12 +519,15 @@ document.addEventListener('DOMContentLoaded', () => {
         );
       }
       uploadStatus.textContent =
+        `Processing and indexing ${file.name}…`;
+      await loadDocuments();
+      uploadStatus.className = 'upload-status';
+      uploadStatus.textContent =
         `${file.name} indexed successfully.`;
       const uploadedFilesDetails = document.getElementById('uploaded-files');
       if (uploadedFilesDetails) {
         uploadedFilesDetails.open = true;
       }
-      await loadDocuments();
     } catch (error) {
       console.error(
         'Upload error:',
@@ -411,8 +536,13 @@ document.addEventListener('DOMContentLoaded', () => {
       uploadStatus.className =
         'upload-status error';
       uploadStatus.textContent =
-        error.message ||
-        'Document upload failed.';
+        error.message || 'Document upload failed.';
+    } finally {
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        updateSendButton();
+      }
+      if (fileInput) fileInput.disabled = false;
     }
   }
   async function deleteDocument(filename) {
@@ -630,3 +760,11 @@ document.addEventListener('DOMContentLoaded', () => {
     conversationId
   );
 });
+
+if (typeof window !== 'undefined') {
+  window.AppMarkdown = {
+    splitMarkdownRow,
+    isTableRow,
+    isTableSeparator
+  };
+}
